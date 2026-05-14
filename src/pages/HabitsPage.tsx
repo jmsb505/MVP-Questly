@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { LoaderCircle } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { RewardNotice } from "../components/RewardNotice";
 import {
@@ -24,6 +25,7 @@ export function HabitsPage() {
   const [reward, setReward] = useState<CompletionReward | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingCompletionId, setPendingCompletionId] = useState<string | null>(null);
 
   const refreshHabits = useCallback(async () => {
     if (!token) {
@@ -71,11 +73,14 @@ export function HabitsPage() {
       return;
     }
     setError(null);
+    setPendingCompletionId(habitId);
     try {
       setReward(await completeHabit(token, habitId));
       await refreshHabits();
     } catch (completeError) {
       setError(completeError instanceof Error ? completeError.message : "Could not complete habit.");
+    } finally {
+      setPendingCompletionId(null);
     }
   }
 
@@ -172,9 +177,11 @@ export function HabitsPage() {
           {habits.length === 0 && !isLoading ? (
             <p className="text-sm text-muted-foreground">No active habits yet.</p>
           ) : null}
-          {habits.map((habit) => (
-            <article key={habit.id} className="rounded-md border border-border bg-background p-4">
-              {editingHabitId === habit.id ? (
+          {habits.map((habit) => {
+            const isCompleting = pendingCompletionId === habit.id;
+            return (
+              <article key={habit.id} className="rounded-md border border-border bg-background p-4">
+                {editingHabitId === habit.id ? (
                 <div className="grid gap-3">
                   <input
                     className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
@@ -233,11 +240,19 @@ export function HabitsPage() {
                       Edit
                     </button>
                     <button
-                      className="h-9 rounded-md border border-border px-3 text-sm font-medium"
+                      className="inline-flex h-9 min-w-32 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium disabled:cursor-wait disabled:opacity-60"
                       type="button"
+                      disabled={pendingCompletionId !== null}
                       onClick={() => void handleComplete(habit.id)}
                     >
-                      Complete today
+                      {isCompleting ? (
+                        <>
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                          Checking
+                        </>
+                      ) : (
+                        "Complete today"
+                      )}
                     </button>
                     <button
                       className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground"
@@ -249,8 +264,9 @@ export function HabitsPage() {
                   </div>
                 </div>
               )}
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>

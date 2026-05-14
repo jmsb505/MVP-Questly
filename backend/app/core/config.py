@@ -21,6 +21,7 @@ class Settings(BaseModel):
     supabase_publishable_key: str | None = None
     supabase_secret_key: str | None = None
     openai_api_key: str | None = None
+    openai_reward_model: str = "gpt-5.4-nano"
 
 
 def _split_csv(value: str | None, default: list[str]) -> list[str]:
@@ -52,4 +53,5 @@ def get_settings() -> Settings:
         or getenv("VITE_SUPABASE_PUBLISHABLE_KEY"),
         supabase_secret_key=getenv("SUPABASE_SECRET_KEY"),
         openai_api_key=getenv("OPENAI_API_KEY"),
+        openai_reward_model=getenv("OPENAI_REWARD_MODEL", "gpt-5.4-nano"),
     )

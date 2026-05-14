@@ -5,6 +5,11 @@ from fastapi import HTTPException, status
 
 from backend.app.schemas.auth import AuthenticatedUser
 from backend.app.schemas.productivity import HabitCreate, HabitUpdate, TaskCreate, TaskUpdate
+from backend.app.services.ai import (
+    ProductivityEvaluationInput,
+    ProductivityEvaluationResult,
+    evaluate_productivity_action,
+)
 from backend.app.services.supabase import get_supabase_admin_client
 
 
@@ -24,6 +29,50 @@ def _first_or_404(rows: list[dict[str, Any]], resource_name: str) -> dict[str, A
             detail=f"{resource_name} was not found for the current user.",
         )
     return rows[0]
+
+
+def _get_user_type(supabase: Any, current_user: AuthenticatedUser) -> str | None:
+    rows = _execute_data(
+        supabase.table("user_profiles")
+        .select("user_type")
+        .eq("id", current_user.id)
+        .limit(1)
+    )
+    if not rows:
+        return None
+    return rows[0].get("user_type")
+
+
+def _log_ai_evaluation(
+    supabase: Any,
+    current_user: AuthenticatedUser,
+    *,
+    request_payload: dict[str, Any],
+    evaluation: ProductivityEvaluationResult,
+) -> None:
+    validation_status = "fallback_used" if evaluation.used_fallback else "approved"
+    response_payload = {
+        "classification": evaluation.classification,
+        "complexity": evaluation.complexity,
+        "meaningfulness": evaluation.meaningfulness,
+        "turns_awarded": evaluation.turns_awarded,
+        "reason": evaluation.reason,
+        "used_fallback": evaluation.used_fallback,
+    }
+
+    _execute_data(
+        supabase.table("ai_generation_logs")
+        .insert(
+            {
+                "user_id": current_user.id,
+                "feature": "productivity_evaluation",
+                "validation_status": validation_status,
+                "request_payload": request_payload,
+                "response_payload": response_payload,
+                "error_message": evaluation.error_message,
+            }
+        )
+    )
 
 
 def list_tasks(current_user: AuthenticatedUser, client: Any | None = None) -> list[dict[str, Any]]:
@@ -167,10 +216,10 @@ def _award_turn(
     source_id: str,
     title_snapshot: str,
     description_snapshot: str | None,
-    reward_reason: str,
+    evaluation: ProductivityEvaluationResult,
     completed_on: date | None = None,
 ) -> dict[str, Any]:
-    turns_awarded = 1
+    turns_awarded = evaluation.turns_awarded
     completed_at = _now().isoformat()
     event_rows = _execute_data(
         supabase.table("productivity_events")
@@ -181,11 +230,11 @@ def _award_turn(
                 "source_id": source_id,
                 "title_snapshot": title_snapshot,
                 "description_snapshot": description_snapshot,
-                "classification": source_type,
-                "complexity": "low",
-                "meaningfulness": "low",
+                "classification": evaluation.classification,
+                "complexity": evaluation.complexity,
+                "meaningfulness": evaluation.meaningfulness,
                 "turns_awarded": turns_awarded,
-                "reward_reason": reward_reason,
+                "reward_reason": evaluation.reason,
                 "completed_at": completed_at,
                 "completed_on": completed_on.isoformat() if completed_on else None,
             }
@@ -214,7 +263,9 @@ def _award_turn(
                 "amount": turns_added,
                 "balance_after": balance_after,
                 "productivity_event_id": event["id"],
-                "reason": reward_reason if turns_added else f"{reward_reason} Balance cap already reached.",
+                "reason": evaluation.reason
+                if turns_added
+                else f"{evaluation.reason} Balance cap already reached.",
             }
         )
     )
@@ -225,14 +276,41 @@ def _award_turn(
         "turns_awarded": turns_awarded,
         "turns_added_to_balance": turns_added,
         "balance_after": balance_after,
-        "reward_reason": reward_reason,
+        "reward_reason": evaluation.reason,
     }
+
+
+def _evaluate_completion(
+    supabase: Any,
+    current_user: AuthenticatedUser,
+    *,
+    source_type: str,
+    title: str,
+    description: str | None,
+    evaluator: Any | None = None,
+) -> ProductivityEvaluationResult:
+    user_type = _get_user_type(supabase, current_user)
+    payload = ProductivityEvaluationInput(
+        source_type=source_type,  # type: ignore[arg-type]
+        title=title,
+        description=description,
+        user_type=user_type,
+    )
+    evaluation = (evaluator or evaluate_productivity_action)(payload)
+    _log_ai_evaluation(
+        supabase,
+        current_user,
+        request_payload=payload.model_dump(),
+        evaluation=evaluation,
+    )
+    return evaluation
 
 
 def complete_task(
     task_id: str,
     current_user: AuthenticatedUser,
     client: Any | None = None,
+    evaluator: Any | None = None,
 ) -> dict[str, Any]:
     supabase = client or get_supabase_admin_client()
     task = _first_or_404(
@@ -252,6 +330,15 @@ def complete_task(
             detail="Task is already completed.",
         )
 
+    evaluation = _evaluate_completion(
+        supabase,
+        current_user,
+        source_type="task",
+        title=task["title"],
+        description=task.get("description"),
+        evaluator=evaluator,
+    )
+
     reward = _award_turn(
         supabase,
         current_user,
@@ -259,7 +346,7 @@ def complete_task(
         source_id=task_id,
         title_snapshot=task["title"],
         description_snapshot=task.get("description"),
-        reward_reason="Nice work completing a real task.",
+        evaluation=evaluation,
         completed_on=date.today(),
     )
 
@@ -276,6 +363,7 @@ def complete_habit(
     habit_id: str,
     current_user: AuthenticatedUser,
     client: Any | None = None,
+    evaluator: Any | None = None,
 ) -> dict[str, Any]:
     supabase = client or get_supabase_admin_client()
     habit = _first_or_404(
@@ -296,6 +384,15 @@ def complete_habit(
             detail="Habit is already completed for today.",
         )
 
+    evaluation = _evaluate_completion(
+        supabase,
+        current_user,
+        source_type="habit",
+        title=habit["title"],
+        description=habit.get("description"),
+        evaluator=evaluator,
+    )
+
     reward = _award_turn(
         supabase,
         current_user,
@@ -303,7 +400,7 @@ def complete_habit(
         source_id=habit_id,
         title_snapshot=habit["title"],
         description_snapshot=habit.get("description"),
-        reward_reason="Nice work keeping up with this habit.",
+        evaluation=evaluation,
         completed_on=today,
     )
 

@@ -12,14 +12,19 @@ This document defines the long-term development plan for the HighTech MVP. The p
 ## Current Development Status
 
 - Overall MVP status: `In development`
-- Current phase: `Phase 4 - Story Turn Reward Engine`
+- Current phase: `Phase 5 - Quest and Narrative Engine`
 - Phase 1 status: `Complete`
 - Phase 2 status: `Complete`
 - Phase 3 status: `Complete`
+- Phase 4 status: `Complete`
+- Phase 5 status: `Ongoing`
 - Started date: `May 14, 2026`
 - Phase 1 completed date: `May 14, 2026`
 - Phase 2 completed date: `May 14, 2026`
 - Phase 3 completed date: `May 14, 2026`
+- Phase 4 started date: `May 14, 2026`
+- Phase 4 completed date: `May 14, 2026`
+- Phase 5 started date: `May 14, 2026`
 
 The MVP should validate one core hypothesis:
 
@@ -373,7 +378,7 @@ Replace the basic deterministic reward path with an AI-assisted evaluator while 
 
 ### Goal
 
-Build the quest system that turns earned story turns into short branching narrative progress.
+Build the quest system that turns earned story turns into engaging branching narrative progress.
 
 ### Main Tasks
 
@@ -389,13 +394,13 @@ Build the quest system that turns earned story turns into short branching narrat
 #### Quest Creation
 
 - Let users choose or confirm genre and tone preferences.
-- Generate a short quest setup when no active quest exists.
+- Generate a videogame-style quest setup when no active quest exists.
 - Store quest title, genre, tone, premise, main objective, planned length, and status.
 - Store initial quest state with current location, known facts, open questions, previous choices summary, and progress status.
 
 #### Narrative Turn Generation
 
-- Generate a short scene from current quest state.
+- Generate a scene from current quest state.
 - Generate 2-3 choices per scene.
 - Store scene text and choices before display.
 - Support choice types: branching, progression, investigation, and tone.
@@ -435,7 +440,7 @@ Build the quest system that turns earned story turns into short branching narrat
 
 ### Acceptance Criteria
 
-- Users can start a short quest.
+- Users can start a 15-turn or longer quest.
 - Users can spend turns on choices.
 - Each selected choice costs exactly 1 turn.
 - Quest state remains coherent across multiple choices.

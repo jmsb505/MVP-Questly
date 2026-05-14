@@ -1,7 +1,10 @@
-import { CalendarDays, CheckCircle2, Circle, Sparkles } from "lucide-react";
+import { CalendarDays, CheckCircle2, Circle, LoaderCircle, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { RewardNotice } from "../components/RewardNotice";
+import { getActiveQuest } from "../features/quests/questsApi";
+import type { Quest } from "../features/quests/types";
 import {
   completeHabit,
   completeTask,
@@ -29,9 +32,11 @@ export function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [balance, setBalance] = useState<StoryTurnBalance | null>(null);
+  const [quest, setQuest] = useState<Quest | null>(null);
   const [reward, setReward] = useState<CompletionReward | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingCompletionId, setPendingCompletionId] = useState<string | null>(null);
 
   const todayKey = getLocalDateKey();
   const profile = account.profile;
@@ -50,9 +55,11 @@ export function DashboardPage() {
         listHabits(token),
         getStoryTurnBalance(token)
       ]);
+      const nextQuest = await getActiveQuest(token);
       setTasks(nextTasks);
       setHabits(nextHabits);
       setBalance(nextBalance);
+      setQuest(nextQuest);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load dashboard.");
     } finally {
@@ -94,11 +101,14 @@ export function DashboardPage() {
       return;
     }
     setError(null);
+    setPendingCompletionId(`task:${taskId}`);
     try {
       setReward(await completeTask(token, taskId));
       await refreshDashboard();
     } catch (completeError) {
       setError(completeError instanceof Error ? completeError.message : "Could not complete task.");
+    } finally {
+      setPendingCompletionId(null);
     }
   }
 
@@ -107,11 +117,14 @@ export function DashboardPage() {
       return;
     }
     setError(null);
+    setPendingCompletionId(`habit:${habitId}`);
     try {
       setReward(await completeHabit(token, habitId));
       await refreshDashboard();
     } catch (completeError) {
       setError(completeError instanceof Error ? completeError.message : "Could not complete habit.");
+    } finally {
+      setPendingCompletionId(null);
     }
   }
 
@@ -163,22 +176,34 @@ export function DashboardPage() {
               {openTasks.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No open tasks. Add tasks from the Tasks page.</p>
               ) : null}
-              {openTasks.map((task) => (
-                <button
-                  key={task.id}
-                  className="flex w-full items-start gap-3 rounded-md border border-border bg-background p-3 text-left transition-colors hover:border-primary"
-                  type="button"
-                  onClick={() => void handleCompleteTask(task.id)}
-                >
-                  <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium">{task.title}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {task.due_date ? `Due ${task.due_date}` : "No due date"}
+              {openTasks.map((task) => {
+                const isCompleting = pendingCompletionId === `task:${task.id}`;
+                return (
+                  <button
+                    key={task.id}
+                    className="flex w-full items-start gap-3 rounded-md border border-border bg-background p-3 text-left transition-colors hover:border-primary disabled:cursor-wait disabled:opacity-75"
+                    type="button"
+                    disabled={pendingCompletionId !== null}
+                    onClick={() => void handleCompleteTask(task.id)}
+                  >
+                    {isCompleting ? (
+                      <LoaderCircle className="mt-0.5 h-4 w-4 animate-spin text-primary" />
+                    ) : (
+                      <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{task.title}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {isCompleting
+                          ? "Evaluating reward..."
+                          : task.due_date
+                            ? `Due ${task.due_date}`
+                            : "No due date"}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -193,15 +218,18 @@ export function DashboardPage() {
               ) : null}
               {habits.map((habit) => {
                 const isDone = habit.last_completed_on === todayKey;
+                const isCompleting = pendingCompletionId === `habit:${habit.id}`;
                 return (
                   <button
                     key={habit.id}
                     className="flex w-full items-start gap-3 rounded-md border border-border bg-background p-3 text-left transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-70"
                     type="button"
-                    disabled={isDone}
+                    disabled={isDone || pendingCompletionId !== null}
                     onClick={() => void handleCompleteHabit(habit.id)}
                   >
-                    {isDone ? (
+                    {isCompleting ? (
+                      <LoaderCircle className="mt-0.5 h-4 w-4 animate-spin text-primary" />
+                    ) : isDone ? (
                       <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
                     ) : (
                       <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />
@@ -209,7 +237,7 @@ export function DashboardPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium">{habit.title}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {isDone ? "Completed today" : habit.frequency ?? "Routine"}
+                        {isCompleting ? "Evaluating reward..." : isDone ? "Completed today" : habit.frequency ?? "Routine"}
                       </span>
                     </span>
                   </button>
@@ -251,10 +279,24 @@ export function DashboardPage() {
                 {" "} / {balance ? balance.max_turns : "-"} turns
               </span>
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Complete tasks and habits to unlock story choices. The quest engine starts in
-              the next phases.
-            </p>
+            {quest ? (
+              <div className="mt-3">
+                <p className="text-sm font-medium">{quest.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Turn {(quest.current_turn?.turn_index ?? 0) + 1} of {quest.planned_length_in_turns}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Start a quest, then spend earned turns on story choices.
+              </p>
+            )}
+            <Link
+              className="mt-4 inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium"
+              to="/quest"
+            >
+              {quest ? "Continue quest" : "Start quest"}
+            </Link>
           </div>
           <div className="mt-4 text-sm leading-6 text-muted-foreground">
             <p>Genres: {memory?.preferred_genres.length ? memory.preferred_genres.join(", ") : "None set"}</p>

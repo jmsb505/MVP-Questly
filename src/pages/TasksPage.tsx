@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { LoaderCircle } from "lucide-react";
 import { RewardNotice } from "../components/RewardNotice";
 import {
   archiveTask,
@@ -24,6 +25,7 @@ export function TasksPage() {
   const [reward, setReward] = useState<CompletionReward | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingCompletionId, setPendingCompletionId] = useState<string | null>(null);
 
   const refreshTasks = useCallback(async () => {
     if (!token) {
@@ -71,11 +73,14 @@ export function TasksPage() {
       return;
     }
     setError(null);
+    setPendingCompletionId(taskId);
     try {
       setReward(await completeTask(token, taskId));
       await refreshTasks();
     } catch (completeError) {
       setError(completeError instanceof Error ? completeError.message : "Could not complete task.");
+    } finally {
+      setPendingCompletionId(null);
     }
   }
 
@@ -169,9 +174,11 @@ export function TasksPage() {
           {tasks.length === 0 && !isLoading ? (
             <p className="text-sm text-muted-foreground">No active tasks yet.</p>
           ) : null}
-          {tasks.map((task) => (
-            <article key={task.id} className="rounded-md border border-border bg-background p-4">
-              {editingTaskId === task.id ? (
+          {tasks.map((task) => {
+            const isCompleting = pendingCompletionId === task.id;
+            return (
+              <article key={task.id} className="rounded-md border border-border bg-background p-4">
+                {editingTaskId === task.id ? (
                 <div className="grid gap-3">
                   <input
                     className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
@@ -227,12 +234,19 @@ export function TasksPage() {
                       Edit
                     </button>
                     <button
-                      className="h-9 rounded-md border border-border px-3 text-sm font-medium disabled:opacity-50"
+                      className="inline-flex h-9 min-w-24 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium disabled:cursor-wait disabled:opacity-60"
                       type="button"
-                      disabled={task.status === "completed"}
+                      disabled={task.status === "completed" || pendingCompletionId !== null}
                       onClick={() => void handleComplete(task.id)}
                     >
-                      Complete
+                      {isCompleting ? (
+                        <>
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                          Checking
+                        </>
+                      ) : (
+                        "Complete"
+                      )}
                     </button>
                     <button
                       className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground"
@@ -244,8 +258,9 @@ export function TasksPage() {
                   </div>
                 </div>
               )}
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>

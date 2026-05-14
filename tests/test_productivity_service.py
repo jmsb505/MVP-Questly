@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.app.schemas.auth import AuthenticatedUser
+from backend.app.services.ai import ProductivityEvaluationResult
 from backend.app.services.productivity import complete_habit, complete_task
 
 
@@ -100,6 +101,7 @@ def test_complete_task_awards_turn_and_writes_audit_records() -> None:
             ],
             "productivity_events": [],
             "story_turn_transactions": [],
+            "ai_generation_logs": [],
         }
     )
 
@@ -111,6 +113,7 @@ def test_complete_task_awards_turn_and_writes_audit_records() -> None:
     assert client.tables["tasks"][0]["status"] == "completed"
     assert len(client.tables["productivity_events"]) == 1
     assert len(client.tables["story_turn_transactions"]) == 1
+    assert len(client.tables["ai_generation_logs"]) == 1
     assert client.tables["story_turn_balances"][0]["available_turns"] == 3
 
 
@@ -132,6 +135,7 @@ def test_complete_task_respects_turn_cap() -> None:
             ],
             "productivity_events": [],
             "story_turn_transactions": [],
+            "ai_generation_logs": [],
         }
     )
 
@@ -161,6 +165,7 @@ def test_complete_task_rejects_duplicate_completion() -> None:
             ],
             "productivity_events": [],
             "story_turn_transactions": [],
+            "ai_generation_logs": [],
         }
     )
 
@@ -198,6 +203,7 @@ def test_complete_habit_rejects_duplicate_same_day_completion(monkeypatch: pytes
             ],
             "productivity_events": [],
             "story_turn_transactions": [],
+            "ai_generation_logs": [],
         }
     )
 
@@ -207,3 +213,103 @@ def test_complete_habit_rejects_duplicate_same_day_completion(monkeypatch: pytes
         complete_habit("habit_1", AuthenticatedUser(id="user_1"), client=client)  # type: ignore[arg-type]
 
     assert exc_info.value.status_code == 409
+
+
+def test_complete_task_uses_ai_evaluation_result() -> None:
+    client = FakeClient(
+        {
+            "user_profiles": [{"id": "user_1", "user_type": "student"}],
+            "tasks": [
+                {
+                    "id": "task_1",
+                    "user_id": "user_1",
+                    "title": "Finish assignment introduction",
+                    "description": "Draft and revise the opening section",
+                    "status": "pending",
+                    "completed_at": None,
+                }
+            ],
+            "story_turn_balances": [
+                {"user_id": "user_1", "available_turns": 2, "max_turns": 10}
+            ],
+            "productivity_events": [],
+            "story_turn_transactions": [],
+            "ai_generation_logs": [],
+        }
+    )
+
+    def evaluator(_payload: object) -> ProductivityEvaluationResult:
+        return ProductivityEvaluationResult(
+            classification="school_task",
+            complexity="medium",
+            meaningfulness="high",
+            turns_awarded=2,
+            reason="This was specific work toward an academic deliverable.",
+        )
+
+    reward = complete_task(
+        "task_1",
+        AuthenticatedUser(id="user_1"),
+        client=client,  # type: ignore[arg-type]
+        evaluator=evaluator,
+    )
+
+    event = client.tables["productivity_events"][0]
+    log = client.tables["ai_generation_logs"][0]
+    transaction = client.tables["story_turn_transactions"][0]
+
+    assert reward["turns_awarded"] == 2
+    assert reward["turns_added_to_balance"] == 2
+    assert reward["balance_after"] == 4
+    assert event["classification"] == "school_task"
+    assert event["complexity"] == "medium"
+    assert event["meaningfulness"] == "high"
+    assert event["reward_reason"] == "This was specific work toward an academic deliverable."
+    assert transaction["amount"] == 2
+    assert log["validation_status"] == "approved"
+    assert log["request_payload"]["user_type"] == "student"
+
+
+def test_complete_task_logs_fallback_evaluation() -> None:
+    client = FakeClient(
+        {
+            "tasks": [
+                {
+                    "id": "task_1",
+                    "user_id": "user_1",
+                    "title": "Review notes",
+                    "description": None,
+                    "status": "pending",
+                    "completed_at": None,
+                }
+            ],
+            "story_turn_balances": [
+                {"user_id": "user_1", "available_turns": 0, "max_turns": 10}
+            ],
+            "productivity_events": [],
+            "story_turn_transactions": [],
+            "ai_generation_logs": [],
+        }
+    )
+
+    def evaluator(_payload: object) -> ProductivityEvaluationResult:
+        return ProductivityEvaluationResult(
+            classification="task",
+            complexity="low",
+            meaningfulness="low",
+            turns_awarded=1,
+            reason="Nice work completing a real task.",
+            used_fallback=True,
+            error_message="OPENAI_API_KEY is not configured.",
+        )
+
+    complete_task(
+        "task_1",
+        AuthenticatedUser(id="user_1"),
+        client=client,  # type: ignore[arg-type]
+        evaluator=evaluator,
+    )
+
+    log = client.tables["ai_generation_logs"][0]
+    assert log["validation_status"] == "fallback_used"
+    assert log["error_message"] == "OPENAI_API_KEY is not configured."

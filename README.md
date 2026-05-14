@@ -17,6 +17,7 @@ Use Supabase's current API key model:
 - `VITE_SUPABASE_PUBLISHABLE_KEY` uses the browser-safe public `sb_publishable_...` key.
 - `SUPABASE_PUBLISHABLE_KEY` can use the same `sb_publishable_...` key for backend Auth verification.
 - `SUPABASE_SECRET_KEY` uses the backend-only `sb_secret_...` key.
+- `OPENAI_REWARD_MODEL` controls the Phase 4 productivity evaluator model and defaults to `gpt-5.4-nano`.
 
 Do not expose `SUPABASE_SECRET_KEY` in frontend code or browser-accessible environment variables.
 
