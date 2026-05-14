@@ -259,7 +259,7 @@ def complete_task(
         source_id=task_id,
         title_snapshot=task["title"],
         description_snapshot=task.get("description"),
-        reward_reason="Valid completed task. Deterministic Phase 3 reward.",
+        reward_reason="Nice work completing a real task.",
         completed_on=date.today(),
     )
 
@@ -303,7 +303,7 @@ def complete_habit(
         source_id=habit_id,
         title_snapshot=habit["title"],
         description_snapshot=habit.get("description"),
-        reward_reason="Valid completed habit. Deterministic Phase 3 reward.",
+        reward_reason="Nice work keeping up with this habit.",
         completed_on=today,
     )
 
