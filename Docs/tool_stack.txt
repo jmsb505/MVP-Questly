@@ -1,0 +1,30 @@
+Frontend:
+React + TypeScript + Vite + Tailwind + shadcn/ui
+
+Hosting:
+Vercel
+
+Backend:
+Python + FastAPI, deployed as Vercel Functions for MVP
+
+Database/Auth:
+Supabase Auth + Supabase Postgres + RLS
+
+AI:
+OpenAI API with Structured Outputs
+
+Validation:
+Pydantic on backend
+TypeScript types on frontend
+
+Dev tooling:
+GitHub
+Supabase CLI
+pytest for backend tests
+Vitest/Playwright later for frontend tests
+
+Observability:
+Sentry when testers start using it
+
+Analytics:
+Start with internal event tables in Supabase
