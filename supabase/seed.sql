@@ -1,0 +1,6 @@
+-- Phase 2 local seed notes:
+-- User-owned rows depend on auth.users records, which are created through Supabase Auth.
+-- For local development, create a test user through the app or Supabase Studio first.
+-- The auth trigger will create user_profiles, user_memory, and story_turn_balances.
+--
+-- Phase 3 can add task/habit sample rows once the app has task and habit APIs.
