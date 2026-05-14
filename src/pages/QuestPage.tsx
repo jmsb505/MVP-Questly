@@ -1,6 +1,9 @@
 import { LoaderCircle, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import { ErrorPanel } from "../components/ErrorPanel";
+import { LoadingRow } from "../components/LoadingRow";
 import {
   abandonActiveQuest,
   createQuest,
@@ -21,6 +24,7 @@ export function QuestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isAbandoning, setIsAbandoning] = useState(false);
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
   const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
 
   const refreshQuest = useCallback(async () => {
@@ -54,6 +58,7 @@ export function QuestPage() {
     setIsCreating(true);
     setError(null);
     setSelection(null);
+    setShowAbandonConfirm(false);
     try {
       const memory = account.memory;
       const nextQuest = await createQuest(token, {
@@ -75,6 +80,7 @@ export function QuestPage() {
     }
     setPendingChoiceId(choiceId);
     setError(null);
+    setShowAbandonConfirm(false);
     try {
       const result = await selectQuestChoice(token, quest.id, choiceId);
       setSelection(result);
@@ -97,6 +103,7 @@ export function QuestPage() {
     try {
       await abandonActiveQuest(token);
       setQuest(null);
+      setShowAbandonConfirm(false);
       await refreshQuest();
     } catch (abandonError) {
       setError(abandonError instanceof Error ? abandonError.message : "Could not abandon quest.");
@@ -131,29 +138,42 @@ export function QuestPage() {
               <p className="text-xs text-muted-foreground">Story turns</p>
             </div>
             {quest ? (
-              <button
-                className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground disabled:cursor-wait disabled:opacity-70"
-                type="button"
-                disabled={isAbandoning || pendingChoiceId !== null}
-                onClick={() => void handleAbandonQuest()}
-              >
-                {isAbandoning ? "Abandoning..." : "Abandon quest"}
-              </button>
+              <div className="grid gap-2">
+                <button
+                  className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground disabled:cursor-wait disabled:opacity-70"
+                  type="button"
+                  disabled={isAbandoning || pendingChoiceId !== null}
+                  onClick={() =>
+                    showAbandonConfirm ? void handleAbandonQuest() : setShowAbandonConfirm(true)
+                  }
+                >
+                  {isAbandoning ? "Abandoning..." : showAbandonConfirm ? "Confirm abandon" : "Abandon quest"}
+                </button>
+                {showAbandonConfirm ? (
+                  <button
+                    className="h-9 rounded-md border border-border px-3 text-sm font-medium"
+                    type="button"
+                    disabled={isAbandoning}
+                    onClick={() => setShowAbandonConfirm(false)}
+                  >
+                    Keep quest
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </div>
 
-        {error ? (
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+        {showAbandonConfirm ? (
+          <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Abandoning clears the active quest and keeps your earned story turns.
           </p>
         ) : null}
 
+        {error ? <div className="mt-4"><ErrorPanel message={error} /></div> : null}
+
         {isLoading ? (
-          <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-            Loading quest...
-          </div>
+          <div className="mt-6"><LoadingRow label="Loading quest state..." /></div>
         ) : null}
 
         {!quest && !isLoading ? (
@@ -165,6 +185,14 @@ export function QuestPage() {
                 <p className="mt-3 text-sm text-muted-foreground">
                   Your completed quest is now available in History. Start a new adventure when ready.
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium"
+                    to="/history"
+                  >
+                    View history
+                  </Link>
+                </div>
               </>
             ) : (
               <>
@@ -182,7 +210,7 @@ export function QuestPage() {
               onClick={() => void handleCreateQuest()}
             >
               {isCreating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isCreating ? "Starting quest" : "Start quest"}
+              {isCreating ? "Building quest..." : selection?.quest_completed ? "Start new quest" : "Start quest"}
             </button>
           </div>
         ) : null}
@@ -218,7 +246,7 @@ export function QuestPage() {
                     <span>
                       <span className="block text-sm font-medium">{choice.choice_text}</span>
                       <span className="mt-1 block text-xs uppercase tracking-wide text-muted-foreground">
-                        {choice.choice_type} / costs 1 turn
+                        {isPending ? "Resolving consequence..." : `${choice.choice_type} / costs 1 turn`}
                       </span>
                     </span>
                     {isPending ? <LoaderCircle className="h-4 w-4 animate-spin text-primary" /> : null}
@@ -226,9 +254,17 @@ export function QuestPage() {
                 );
               })}
               {availableTurns < 1 ? (
-                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                  Complete a task or habit to earn a story turn before choosing.
-                </p>
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <p>Complete a task or habit to earn a story turn before choosing.</p>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    <Link className="font-medium underline" to="/tasks">
+                      Go to tasks
+                    </Link>
+                    <Link className="font-medium underline" to="/habits">
+                      Go to habits
+                    </Link>
+                  </div>
+                </div>
               ) : null}
             </div>
           </div>

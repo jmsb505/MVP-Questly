@@ -4,7 +4,7 @@ import { useAuth } from "../auth/useAuth";
 import { saveOnboarding } from "../features/account/accountApi";
 import type { UserType } from "../features/account/types";
 
-const genreOptions = ["Fantasy", "Sci-fi", "Mystery", "Adventure", "Cozy", "Academic"];
+const genreOptions = ["Fantasy", "Sci-fi", "Cyberpunk", "Mystery", "Adventure", "Horror-lite", "Cozy"];
 
 export function OnboardingPage() {
   const { account, refreshAccount, user } = useAuth();
@@ -60,11 +60,11 @@ export function OnboardingPage() {
     <form className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]" onSubmit={handleSubmit}>
       <section className="rounded-md border border-border bg-surface p-5">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Onboarding
+          Preferences
         </p>
-        <h2 className="text-xl font-semibold">Set your quest preferences</h2>
+        <h2 className="text-xl font-semibold">Set your story preferences</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          These settings seed the lightweight user memory used for future quest generation.
+          These settings shape quest generation and can be updated as your taste changes.
         </p>
 
         <div className="mt-5 grid gap-4">
@@ -115,7 +115,7 @@ export function OnboardingPage() {
           </fieldset>
 
           <label className="grid gap-2 text-sm font-medium">
-            Tone and style
+            Story style
             <textarea
               className="min-h-28 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
               value={toneStylePreferences}
@@ -135,16 +135,16 @@ export function OnboardingPage() {
             type="submit"
             disabled={!canSave || isSaving}
           >
-            {isSaving ? "Saving..." : "Finish onboarding"}
+            {isSaving ? "Saving..." : "Save preferences"}
           </button>
         </div>
       </section>
 
       <aside className="rounded-md border border-border bg-surface p-5 text-sm leading-6 text-muted-foreground">
-        <h2 className="text-lg font-semibold text-foreground">Stored in Phase 2</h2>
+        <h2 className="text-lg font-semibold text-foreground">How this is used</h2>
         <p className="mt-3">
-          This saves your profile type, onboarding status, preferred genres, and tone
-          preferences through Supabase RLS-protected rows.
+          Your profile and story preferences help new quests pick a genre, pacing,
+          and style without storing long personal notes.
         </p>
       </aside>
     </form>

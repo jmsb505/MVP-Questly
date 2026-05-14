@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { LoaderCircle } from "lucide-react";
+import { CheckCircle2, LoaderCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useAuth } from "../auth/useAuth";
+import { EmptyState } from "../components/EmptyState";
+import { ErrorPanel } from "../components/ErrorPanel";
+import { LoadingRow } from "../components/LoadingRow";
 import { RewardNotice } from "../components/RewardNotice";
 import {
   archiveTask,
@@ -9,7 +13,6 @@ import {
   updateTask
 } from "../features/productivity/productivityApi";
 import type { CompletionReward, Task } from "../features/productivity/types";
-import { useAuth } from "../auth/useAuth";
 
 export function TasksPage() {
   const { session } = useAuth();
@@ -26,6 +29,16 @@ export function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingCompletionId, setPendingCompletionId] = useState<string | null>(null);
+  const [pendingArchiveId, setPendingArchiveId] = useState<string | null>(null);
+
+  const activeTasks = useMemo(
+    () => tasks.filter((task) => task.status !== "completed" && task.status !== "archived"),
+    [tasks]
+  );
+  const completedTasks = useMemo(
+    () => tasks.filter((task) => task.status === "completed"),
+    [tasks]
+  );
 
   const refreshTasks = useCallback(async () => {
     if (!token) {
@@ -89,11 +102,14 @@ export function TasksPage() {
       return;
     }
     setError(null);
+    setPendingArchiveId(taskId);
     try {
       await archiveTask(token, taskId);
       await refreshTasks();
     } catch (archiveError) {
       setError(archiveError instanceof Error ? archiveError.message : "Could not archive task.");
+    } finally {
+      setPendingArchiveId(null);
     }
   }
 
@@ -120,6 +136,114 @@ export function TasksPage() {
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "Could not update task.");
     }
+  }
+
+  function renderTask(task: Task, completed = false) {
+    const isCompleting = pendingCompletionId === task.id;
+    const isArchiving = pendingArchiveId === task.id;
+    const isBusy = pendingCompletionId !== null || pendingArchiveId !== null;
+
+    return (
+      <article
+        key={task.id}
+        className={`rounded-md border p-4 ${
+          completed
+            ? "border-emerald-200 bg-emerald-50"
+            : "border-border bg-background"
+        }`}
+      >
+        {editingTaskId === task.id ? (
+          <div className="grid gap-3">
+            <input
+              className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
+              value={editTitle}
+              onChange={(event) => setEditTitle(event.target.value)}
+            />
+            <textarea
+              className="min-h-20 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+            />
+            <input
+              className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
+              type="date"
+              value={editDueDate}
+              onChange={(event) => setEditDueDate(event.target.value)}
+            />
+            <div className="flex gap-2">
+              <button
+                className="h-9 rounded-md border border-primary bg-primary px-3 text-sm font-medium text-primary-foreground"
+                type="button"
+                onClick={() => void handleUpdate(task.id)}
+              >
+                Save
+              </button>
+              <button
+                className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground"
+                type="button"
+                onClick={() => setEditingTaskId(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                {completed ? <CheckCircle2 className="h-4 w-4 text-emerald-700" /> : null}
+                <h3 className="font-semibold">{task.title}</h3>
+              </div>
+              {task.description ? (
+                <p className="mt-1 text-sm text-muted-foreground">{task.description}</p>
+              ) : null}
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                {completed ? "Completed" : "Open"}
+                {task.due_date ? ` / Due ${task.due_date}` : ""}
+                {task.completed_at ? ` / Done ${task.completed_at.slice(0, 10)}` : ""}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!completed ? (
+                <>
+                  <button
+                    className="h-9 rounded-md border border-border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => startEdit(task)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="inline-flex h-9 min-w-28 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium disabled:cursor-wait disabled:opacity-60"
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void handleComplete(task.id)}
+                  >
+                    {isCompleting ? (
+                      <>
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                        Evaluating
+                      </>
+                    ) : (
+                      "Complete"
+                    )}
+                  </button>
+                </>
+              ) : null}
+              <button
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground disabled:cursor-wait disabled:opacity-60"
+                type="button"
+                disabled={isBusy}
+                onClick={() => void handleArchive(task.id)}
+              >
+                {isArchiving ? "Archiving" : "Archive"}
+              </button>
+            </div>
+          </div>
+        )}
+      </article>
+    );
   }
 
   return (
@@ -162,105 +286,43 @@ export function TasksPage() {
           >
             Add task
           </button>
-          {error ? <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+          {error ? <ErrorPanel message={error} /> : null}
           <RewardNotice reward={reward} />
         </div>
       </form>
 
-      <section className="rounded-md border border-border bg-surface p-5">
-        <h2 className="text-xl font-semibold">Active tasks</h2>
-        {isLoading ? <p className="mt-3 text-sm text-muted-foreground">Loading tasks...</p> : null}
-        <div className="mt-5 grid gap-3">
-          {tasks.length === 0 && !isLoading ? (
-            <p className="text-sm text-muted-foreground">No active tasks yet.</p>
-          ) : null}
-          {tasks.map((task) => {
-            const isCompleting = pendingCompletionId === task.id;
-            return (
-              <article key={task.id} className="rounded-md border border-border bg-background p-4">
-                {editingTaskId === task.id ? (
-                <div className="grid gap-3">
-                  <input
-                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
-                    value={editTitle}
-                    onChange={(event) => setEditTitle(event.target.value)}
-                  />
-                  <textarea
-                    className="min-h-20 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
-                    value={editDescription}
-                    onChange={(event) => setEditDescription(event.target.value)}
-                  />
-                  <input
-                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
-                    type="date"
-                    value={editDueDate}
-                    onChange={(event) => setEditDueDate(event.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      className="h-9 rounded-md border border-primary bg-primary px-3 text-sm font-medium text-primary-foreground"
-                      type="button"
-                      onClick={() => void handleUpdate(task.id)}
-                    >
-                      Save
-                    </button>
-                    <button
-                      className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground"
-                      type="button"
-                      onClick={() => setEditingTaskId(null)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="font-semibold">{task.title}</h3>
-                    {task.description ? (
-                      <p className="mt-1 text-sm text-muted-foreground">{task.description}</p>
-                    ) : null}
-                    <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-                      {task.status}
-                      {task.due_date ? ` / Due ${task.due_date}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="h-9 rounded-md border border-border px-3 text-sm font-medium"
-                      type="button"
-                      onClick={() => startEdit(task)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="inline-flex h-9 min-w-24 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium disabled:cursor-wait disabled:opacity-60"
-                      type="button"
-                      disabled={task.status === "completed" || pendingCompletionId !== null}
-                      onClick={() => void handleComplete(task.id)}
-                    >
-                      {isCompleting ? (
-                        <>
-                          <LoaderCircle className="h-4 w-4 animate-spin" />
-                          Checking
-                        </>
-                      ) : (
-                        "Complete"
-                      )}
-                    </button>
-                    <button
-                      className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground"
-                      type="button"
-                      onClick={() => void handleArchive(task.id)}
-                    >
-                      Archive
-                    </button>
-                  </div>
-                </div>
-              )}
-              </article>
-            );
-          })}
+      <section className="grid gap-5">
+        <div className="rounded-md border border-border bg-surface p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Active tasks</h2>
+            <span className="text-xs text-muted-foreground">{activeTasks.length} open</span>
+          </div>
+          {isLoading ? <div className="mt-3"><LoadingRow label="Loading tasks..." /></div> : null}
+          <div className="mt-5 grid gap-3">
+            {activeTasks.length === 0 && !isLoading ? (
+              <EmptyState
+                title="No open tasks"
+                description="Create a concrete task on the left when there is something specific to finish."
+              />
+            ) : null}
+            {activeTasks.map((task) => renderTask(task))}
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border bg-surface p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Completed tasks</h2>
+            <span className="text-xs text-muted-foreground">{completedTasks.length} done</span>
+          </div>
+          <div className="mt-5 grid gap-3">
+            {completedTasks.length === 0 ? (
+              <EmptyState
+                title="No completed tasks yet"
+                description="Finished tasks will move here after their story turn reward is awarded."
+              />
+            ) : null}
+            {completedTasks.map((task) => renderTask(task, true))}
+          </div>
         </div>
       </section>
     </div>

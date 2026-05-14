@@ -1,7 +1,9 @@
-import { CalendarDays, CheckCircle2, Circle, LoaderCircle, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Circle, LoaderCircle, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import { EmptyState } from "../components/EmptyState";
+import { ErrorPanel } from "../components/ErrorPanel";
 import { RewardNotice } from "../components/RewardNotice";
 import { getActiveQuest } from "../features/quests/questsApi";
 import type { Quest } from "../features/quests/types";
@@ -50,12 +52,12 @@ export function DashboardPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [nextTasks, nextHabits, nextBalance] = await Promise.all([
+      const [nextTasks, nextHabits, nextBalance, nextQuest] = await Promise.all([
         listTasks(token),
         listHabits(token),
-        getStoryTurnBalance(token)
+        getStoryTurnBalance(token),
+        getActiveQuest(token)
       ]);
-      const nextQuest = await getActiveQuest(token);
       setTasks(nextTasks);
       setHabits(nextHabits);
       setBalance(nextBalance);
@@ -85,6 +87,45 @@ export function DashboardPage() {
       habits.filter((habit) => habit.last_completed_on === todayKey).length,
     [completedTasks, habits, todayKey]
   );
+  const habitsRemainingToday = useMemo(
+    () => habits.filter((habit) => habit.last_completed_on !== todayKey),
+    [habits, todayKey]
+  );
+  const nextAction = useMemo(() => {
+    if (openTasks.length === 0 && habits.length === 0) {
+      return {
+        title: "Create the first action",
+        description: "Add one task or habit so the reward loop has something real to track.",
+        to: "/tasks",
+        label: "Add task"
+      };
+    }
+
+    if ((balance?.available_turns ?? 0) < 1) {
+      return {
+        title: "Earn the next story turn",
+        description: "Complete an open task or one daily habit to unlock another story choice.",
+        to: openTasks.length ? "/tasks" : "/habits",
+        label: openTasks.length ? "Review tasks" : "Review habits"
+      };
+    }
+
+    if (!quest) {
+      return {
+        title: "Start an adventure",
+        description: "You have turns available. Start a quest and spend one on the first choice.",
+        to: "/quest",
+        label: "Start quest"
+      };
+    }
+
+    return {
+      title: "Continue the quest",
+      description: "Spend one turn on the next choice and push the story forward.",
+      to: "/quest",
+      label: "Continue"
+    };
+  }, [balance?.available_turns, habits.length, openTasks.length, quest]);
   const historyDays = useMemo(
     () =>
       Array.from({ length: 7 }, (_item, index) => {
@@ -156,15 +197,42 @@ export function DashboardPage() {
               </div>
             </div>
           </div>
-          {error ? (
-            <p className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
+          {error ? <div className="mt-4"><ErrorPanel message={error} /></div> : null}
           <div className="mt-4">
             <RewardNotice reward={reward} />
           </div>
         </div>
+
+        <section className="grid gap-4 rounded-md border border-border bg-surface p-5 lg:grid-cols-[minmax(0,1fr)_220px]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Next best action
+            </p>
+            <h3 className="mt-1 text-xl font-semibold">{nextAction.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{nextAction.description}</p>
+            <Link
+              className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
+              to={nextAction.to}
+            >
+              {nextAction.label}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="rounded-md border border-border bg-background p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Story turns
+            </p>
+            <p className="mt-2 text-4xl font-semibold">
+              {balance ? balance.available_turns : "-"}
+              <span className="text-base font-normal text-muted-foreground">
+                {" "} / {balance ? balance.max_turns : "-"}
+              </span>
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Earned by completing real tasks and habits.
+            </p>
+          </div>
+        </section>
 
         <div className="grid gap-5 lg:grid-cols-2">
           <section className="rounded-md border border-border bg-surface p-5">
@@ -174,7 +242,15 @@ export function DashboardPage() {
             </div>
             <div className="mt-4 grid gap-2">
               {openTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No open tasks. Add tasks from the Tasks page.</p>
+                <EmptyState
+                  title="No open tasks"
+                  description="Add a task when there is a concrete one-off action to finish."
+                  action={
+                    <Link className="text-sm font-medium text-primary" to="/tasks">
+                      Open tasks
+                    </Link>
+                  }
+                />
               ) : null}
               {openTasks.map((task) => {
                 const isCompleting = pendingCompletionId === `task:${task.id}`;
@@ -214,7 +290,15 @@ export function DashboardPage() {
             </div>
             <div className="mt-4 grid gap-2">
               {habits.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No habits yet. Add habits from the Habits page.</p>
+                <EmptyState
+                  title="No habits yet"
+                  description="Add a daily or weekly routine that should keep coming back."
+                  action={
+                    <Link className="text-sm font-medium text-primary" to="/habits">
+                      Open habits
+                    </Link>
+                  }
+                />
               ) : null}
               {habits.map((habit) => {
                 const isDone = habit.last_completed_on === todayKey;
@@ -273,21 +357,18 @@ export function DashboardPage() {
             <h3 className="text-lg font-semibold">Quest side panel</h3>
           </div>
           <div className="mt-4 rounded-md border border-border bg-background p-4">
-            <p className="text-3xl font-semibold">
-              {balance ? balance.available_turns : "-"}
-              <span className="text-sm font-normal text-muted-foreground">
-                {" "} / {balance ? balance.max_turns : "-"} turns
-              </span>
-            </p>
             {quest ? (
-              <div className="mt-3">
+              <div>
                 <p className="text-sm font-medium">{quest.title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Turn {(quest.current_turn?.turn_index ?? 0) + 1} of {quest.planned_length_in_turns}
                 </p>
+                <p className="mt-3 line-clamp-4 text-sm leading-6 text-muted-foreground">
+                  {quest.current_turn?.scene_text ?? quest.premise}
+                </p>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Start a quest, then spend earned turns on story choices.
               </p>
             )}
@@ -300,7 +381,8 @@ export function DashboardPage() {
           </div>
           <div className="mt-4 text-sm leading-6 text-muted-foreground">
             <p>Genres: {memory?.preferred_genres.length ? memory.preferred_genres.join(", ") : "None set"}</p>
-            <p>Tone: {memory?.tone_style_preferences ?? "None set"}</p>
+            <p>Style: {memory?.tone_style_preferences ?? "None set"}</p>
+            <p>Habits left today: {habitsRemainingToday.length}</p>
           </div>
         </section>
       </aside>

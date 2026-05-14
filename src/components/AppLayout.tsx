@@ -3,7 +3,7 @@ import {
   History,
   LayoutDashboard,
   ListChecks,
-  LogIn,
+  LogOut,
   Sparkles,
   UserRound
 } from "lucide-react";
@@ -11,18 +11,18 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { cn } from "../lib/cn";
 
-const navItems = [
+const authenticatedNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
   { to: "/habits", label: "Habits", icon: ListChecks },
   { to: "/quest", label: "Quest", icon: Sparkles },
   { to: "/history", label: "History", icon: History },
-  { to: "/onboarding", label: "Onboarding", icon: UserRound },
-  { to: "/login", label: "Login", icon: LogIn }
+  { to: "/onboarding", label: "Preferences", icon: UserRound }
 ];
 
 export function AppLayout() {
   const { isConfigured, session, signOut, user } = useAuth();
+  const navItems = session ? authenticatedNavItems : [{ to: "/login", label: "Login", icon: UserRound }];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -30,9 +30,9 @@ export function AppLayout() {
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              HighTech MVP
+              Questly
             </p>
-            <h1 className="text-2xl font-semibold">Productivity Quest App</h1>
+            <h1 className="text-2xl font-semibold">Productivity Quest</h1>
           </div>
           <nav className="flex flex-wrap items-center gap-2">
             {navItems.map((item) => (
@@ -58,14 +58,15 @@ export function AppLayout() {
                 type="button"
                 onClick={() => void signOut()}
               >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
                 Sign out
               </button>
             ) : null}
           </nav>
         </div>
         <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 pb-4 text-xs text-muted-foreground sm:px-6">
-          <span>Auth: {isConfigured ? "Supabase configured" : "Supabase env missing"}</span>
           {user?.email ? <span>Signed in as {user.email}</span> : null}
+          {!isConfigured ? <span>Supabase environment variables are missing.</span> : null}
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
