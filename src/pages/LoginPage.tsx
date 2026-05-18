@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 
 export function LoginPage() {
@@ -111,6 +111,13 @@ export function LoginPage() {
               placeholder="Minimum 6 characters"
             />
           </label>
+          {mode === "sign-in" ? (
+            <div className="flex justify-end">
+              <Link className="text-sm font-medium text-primary hover:underline" to="/forgot-password">
+                Forgot password?
+              </Link>
+            </div>
+          ) : null}
 
           {error ? <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
           {message ? <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}

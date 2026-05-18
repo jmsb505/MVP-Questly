@@ -97,6 +97,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? "Account created. You are signed in."
           : "Account created. Check your email if confirmation is enabled.";
       },
+      async requestPasswordReset(email: string) {
+        if (!supabase) {
+          throw new Error("Supabase is not configured.");
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/update-password`
+        });
+        if (error) {
+          throw error;
+        }
+      },
+      async updatePassword(password: string) {
+        if (!supabase) {
+          throw new Error("Supabase is not configured.");
+        }
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) {
+          throw error;
+        }
+      },
       async signOut() {
         if (!supabase) {
           return;

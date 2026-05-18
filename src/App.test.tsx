@@ -33,4 +33,34 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
+
+  it("renders the forgot password page", () => {
+    render(
+      <MemoryRouter
+        initialEntries={["/forgot-password"]}
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+      >
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("heading", { name: "Reset password" })).toBeInTheDocument();
+  });
+
+  it("renders the update password page", () => {
+    render(
+      <MemoryRouter
+        initialEntries={["/update-password"]}
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+      >
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeInTheDocument();
+  });
 });

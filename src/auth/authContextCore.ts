@@ -11,6 +11,8 @@ export type AuthContextValue = {
   account: AccountState;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<string>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAccount: () => Promise<void>;
 };

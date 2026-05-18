@@ -6,8 +6,10 @@
 - Output directory: `dist`
 - Framework preset: `Other`
 - Confirm the `api/index.py` function is detected after deployment.
-- Keep the repo-root `.python-version` file at `3.12`.
-- Keep `pyproject.toml` with `requires-python = "~=3.12.0"` so Vercel stays on Python 3.12 for the current backend dependency set.
+- Confirm Supabase Auth URL Configuration includes:
+  - production site URL
+  - `http://localhost:5280/update-password`
+  - deployed app `/update-password` URL
 
 ## Required Environment Variables
 
@@ -51,6 +53,7 @@
 
 - Open `/api/health` and confirm the API responds.
 - Sign in with a real account.
+- Request a password reset email and confirm the link returns to `/update-password`.
 - Create and complete a task.
 - Confirm turns are awarded.
 - Start a quest and confirm the first scene loads.
