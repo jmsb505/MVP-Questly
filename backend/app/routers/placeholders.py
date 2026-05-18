@@ -13,8 +13,3 @@ def not_implemented(feature: str) -> PlaceholderResponse:
             "phase": "Future MVP phase",
         },
     )
-
-
-@router.get("/user-memory", response_model=PlaceholderResponse)
-def user_memory_placeholder() -> PlaceholderResponse:
-    return not_implemented("User memory")

@@ -10,6 +10,7 @@ from backend.app.services.ai import (
     ProductivityEvaluationResult,
     evaluate_productivity_action,
 )
+from backend.app.services.memory import update_productivity_summary
 from backend.app.services.supabase import get_supabase_admin_client
 
 
@@ -50,7 +51,7 @@ def _log_ai_evaluation(
     request_payload: dict[str, Any],
     evaluation: ProductivityEvaluationResult,
 ) -> None:
-    validation_status = "fallback_used" if evaluation.used_fallback else "approved"
+    validation_status = evaluation.validation_status or ("fallback_used" if evaluation.used_fallback else "approved")
     response_payload = {
         "classification": evaluation.classification,
         "complexity": evaluation.complexity,
@@ -356,6 +357,12 @@ def complete_task(
         .eq("id", task_id)
         .eq("user_id", current_user.id)
     )
+    update_productivity_summary(
+        supabase,
+        current_user,
+        source_type="task",
+        title=task["title"],
+    )
     return reward
 
 
@@ -409,5 +416,11 @@ def complete_habit(
         .update({"last_completed_on": today.isoformat()})
         .eq("id", habit_id)
         .eq("user_id", current_user.id)
+    )
+    update_productivity_summary(
+        supabase,
+        current_user,
+        source_type="habit",
+        title=habit["title"],
     )
     return reward

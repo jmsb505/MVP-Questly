@@ -9,14 +9,21 @@ from backend.app.services.ai import (
     ChoiceResolutionInput,
     ChoiceResolutionResult,
     NarrativeTurnInput,
-    NarrativeTurnResult,
     QuestPlanInput,
     generate_narrative_turn,
-    fallback_choice_resolution,
-    fallback_narrative_turn,
-    fallback_quest_plan,
     plan_quest,
     resolve_choice,
+)
+from backend.app.services.ai_validation import (
+    validate_choice_resolution,
+    validate_narrative_turn,
+    validate_quest_plan,
+)
+from backend.app.services.memory import (
+    clear_active_quest_memory,
+    get_user_memory,
+    record_completed_quest_summary,
+    update_active_quest_memory,
 )
 from backend.app.services.productivity import get_story_turn_balance
 from backend.app.services.supabase import get_supabase_admin_client
@@ -56,93 +63,15 @@ def _log_ai(
             {
                 "user_id": current_user.id,
                 "feature": feature,
-                "validation_status": "fallback_used" if used_fallback else "approved",
+                "validation_status": (
+                    response_payload.pop("validation_status", None)
+                    or ("fallback_used" if used_fallback else "approved")
+                ),
                 "request_payload": request_payload,
                 "response_payload": response_payload,
                 "error_message": error_message,
             }
         )
-    )
-
-
-EXCLUDED_NARRATIVE_TERMS = [
-    " xp",
-    "experience points",
-    "level up",
-    "level-up",
-    "stats",
-    "stat points",
-    "skill tree",
-    "inventory",
-    "coins",
-    "badges",
-    "multiplayer",
-]
-
-
-def _contains_excluded_terms(*values: Any) -> bool:
-    text = " ".join(str(value or "") for value in values).lower()
-    return any(term in text for term in EXCLUDED_NARRATIVE_TERMS)
-
-
-def _validated_plan(plan: Any, payload: QuestPlanInput) -> Any:
-    if _contains_excluded_terms(
-        plan.quest_title,
-        plan.genre,
-        plan.tone,
-        plan.premise,
-        plan.main_objective,
-        plan.starting_situation,
-        " ".join(plan.known_facts),
-        " ".join(plan.open_questions),
-    ):
-        return fallback_quest_plan(payload, "Quest plan included excluded mechanics.")
-    return plan
-
-
-def _validated_narrative(narrative: NarrativeTurnResult, payload: NarrativeTurnInput) -> NarrativeTurnResult:
-    choice_text = " ".join(choice.choice_text for choice in narrative.choices)
-    if _contains_excluded_terms(narrative.scene_text, choice_text):
-        return fallback_narrative_turn(payload, "Narrative turn included excluded mechanics.")
-    return narrative
-
-
-def _validated_resolution(
-    resolution: ChoiceResolutionResult,
-    payload: ChoiceResolutionInput,
-) -> ChoiceResolutionResult:
-    if _contains_excluded_terms(
-        resolution.consequence,
-        resolution.current_location,
-        resolution.previous_choices_summary,
-        resolution.final_summary,
-        resolution.outcome_summary,
-        " ".join(resolution.new_story_facts),
-        " ".join(resolution.open_questions),
-    ):
-        return fallback_choice_resolution(payload, "Choice resolution included excluded mechanics.")
-    return resolution
-
-
-def _get_memory(supabase: Any, current_user: AuthenticatedUser) -> dict[str, Any]:
-    rows = _execute_data(
-        supabase.table("user_memory")
-        .select("*")
-        .eq("user_id", current_user.id)
-        .limit(1)
-    )
-    return rows[0] if rows else {}
-
-
-def _update_memory(
-    supabase: Any,
-    current_user: AuthenticatedUser,
-    updates: dict[str, Any],
-) -> None:
-    _execute_data(
-        supabase.table("user_memory")
-        .update(updates)
-        .eq("user_id", current_user.id)
     )
 
 
@@ -277,7 +206,7 @@ def _create_turn(
         previous_choices_summary=state.get("previous_choices_summary"),
         turn_index=turn_index,
     )
-    narrative = _validated_narrative(generate_narrative_turn(payload), payload)
+    narrative = validate_narrative_turn(generate_narrative_turn(payload), payload)
     _log_ai(
         supabase,
         current_user,
@@ -336,11 +265,11 @@ def create_quest(
     if existing:
         return _serialize_quest(supabase, existing, current_user)
 
-    memory = _get_memory(supabase, current_user)
+    memory = get_user_memory(supabase, current_user)
     preferred_genres = [payload.genre] if payload.genre else memory.get("preferred_genres") or []
     tone = payload.tone or memory.get("tone_style_preferences")
     plan_payload = QuestPlanInput(preferred_genres=preferred_genres, tone_style_preferences=tone)
-    plan = _validated_plan(plan_quest(plan_payload), plan_payload)
+    plan = validate_quest_plan(plan_quest(plan_payload), plan_payload)
     _log_ai(
         supabase,
         current_user,
@@ -388,13 +317,12 @@ def create_quest(
         "Quest state",
     )
     _create_turn(supabase, current_user, quest, state, 0)
-    _update_memory(
+    update_active_quest_memory(
         supabase,
         current_user,
-        {
-            "active_quest_summary": _quest_summary(quest, state),
-            "previous_story_choices_summary": plan.starting_situation,
-        },
+        active_quest_summary=_quest_summary(quest, state),
+        previous_story_choices_summary=plan.starting_situation,
+        new_story_facts=plan.known_facts,
     )
     return _serialize_quest(supabase, quest, current_user)
 
@@ -428,14 +356,7 @@ def abandon_active_quest(
         .eq("quest_id", quest["id"])
         .eq("user_id", current_user.id)
     )
-    _update_memory(
-        supabase,
-        current_user,
-        {
-            "active_quest_summary": None,
-            "previous_story_choices_summary": None,
-        },
-    )
+    clear_active_quest_memory(supabase, current_user)
     return _serialize_quest(supabase, abandoned, current_user)
 
 
@@ -512,7 +433,7 @@ def select_choice(
         turns_spent_after=turns_spent_after,
         planned_length_in_turns=quest["planned_length_in_turns"],
     )
-    resolution = _validated_resolution(resolve_choice(resolution_payload), resolution_payload)
+    resolution = validate_choice_resolution(resolve_choice(resolution_payload), resolution_payload)
     quest_completed = resolution.is_quest_complete or turns_spent_after >= int(quest["planned_length_in_turns"])
     _log_ai(
         supabase,
@@ -607,36 +528,24 @@ def select_choice(
                 }
             )
         )
-        memory = _get_memory(supabase, current_user)
-        completed_summaries = list(memory.get("completed_quest_summaries") or [])
-        completed_summaries.append(
-            {
-                "quest_id": quest_id,
-                "title": quest["title"],
-                "final_summary": final_summary,
-                "outcome_summary": outcome_summary,
-                "completed_at": _now(),
-            }
-        )
-        _update_memory(
+        record_completed_quest_summary(
             supabase,
             current_user,
-            {
-                "active_quest_summary": None,
-                "previous_story_choices_summary": None,
-                "completed_quest_summaries": completed_summaries[-10:],
-            },
+            quest_id=quest_id,
+            title=quest["title"],
+            final_summary=final_summary,
+            outcome_summary=outcome_summary,
+            completed_at=_now(),
         )
     else:
         next_state = _quest_state(supabase, quest_id, current_user) or state_updates
         _create_turn(supabase, current_user, quest, next_state, turns_spent_after)
-        _update_memory(
+        update_active_quest_memory(
             supabase,
             current_user,
-            {
-                "active_quest_summary": _quest_summary(quest, next_state),
-                "previous_story_choices_summary": resolution.previous_choices_summary,
-            },
+            active_quest_summary=_quest_summary(quest, next_state),
+            previous_story_choices_summary=resolution.previous_choices_summary,
+            new_story_facts=resolution.new_story_facts,
         )
 
     serialized = _serialize_quest(supabase, quest, current_user)

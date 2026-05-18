@@ -292,6 +292,58 @@ def test_select_choice_rejects_when_no_turns_available() -> None:
 
     assert exc_info.value.status_code == 409
     assert exc_info.value.detail == "No story turns available."
+    assert client.tables["story_turn_balances"][0]["available_turns"] == 0
+
+
+def test_select_choice_rejects_second_choice_for_same_turn() -> None:
+    client = FakeClient(
+        {
+            "quests": [
+                {
+                    "id": "quest_1",
+                    "user_id": "user_1",
+                    "title": "Test Quest",
+                    "planned_length_in_turns": 15,
+                    "status": "active",
+                    "started_at": "2026-05-14T10:00:00Z",
+                }
+            ],
+            "quest_choices": [
+                {
+                    "id": "choice_1",
+                    "quest_turn_id": "turn_1",
+                    "quest_id": "quest_1",
+                    "user_id": "user_1",
+                    "choice_text": "Inspect.",
+                    "choice_type": "investigation",
+                    "selected": True,
+                },
+                {
+                    "id": "choice_2",
+                    "quest_turn_id": "turn_1",
+                    "quest_id": "quest_1",
+                    "user_id": "user_1",
+                    "choice_text": "Leave.",
+                    "choice_type": "progression",
+                    "selected": False,
+                },
+            ],
+            "story_turn_balances": [
+                {"user_id": "user_1", "available_turns": 2, "max_turns": 10}
+            ],
+        }
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        quests.select_choice(
+            "quest_1",
+            "choice_2",
+            AuthenticatedUser(id="user_1"),
+            client=client,  # type: ignore[arg-type]
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == "A choice has already been selected for this story turn."
 
 
 def test_create_quest_replaces_excluded_mechanics_with_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -330,7 +382,7 @@ def test_create_quest_replaces_excluded_mechanics_with_fallback(monkeypatch: pyt
 
     assert result["title"] == "The Shattered Observatory"
     assert result["planned_length_in_turns"] == 15
-    assert client.tables["ai_generation_logs"][0]["validation_status"] == "fallback_used"
+    assert client.tables["ai_generation_logs"][0]["validation_status"] == "rejected"
 
 
 def test_abandon_active_quest_clears_memory() -> None:

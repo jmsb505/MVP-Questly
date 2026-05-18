@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -b --pretty false",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.4",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/js": "8.57.0",
+    "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.4.5",
     "@testing-library/react": "^15.0.7",
     "@types/react": "^18.3.3",

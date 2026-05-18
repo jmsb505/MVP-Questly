@@ -40,6 +40,7 @@ pnpm dev:api
 pnpm typecheck
 pnpm lint
 pnpm test
+pnpm test:e2e
 pnpm run build
 ```
 
@@ -53,6 +54,19 @@ If port `5280` is already in use, stop the older Vite process or close the termi
 .\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 pytest
 ```
+
+For the repo-local backend dependencies, prefer:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+## Test Coverage
+
+- Backend unit and service tests: `.\.venv\Scripts\python.exe -m pytest`
+- Frontend component tests: `pnpm test`
+- Browser smoke tests: `pnpm test:e2e`
+- Manual tester pass: see `Docs/HighTech__Manual_QA_Checklist.md`
 
 The FastAPI app runs at `http://localhost:8000` by default. Health check:
 

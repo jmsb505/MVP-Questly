@@ -42,6 +42,7 @@ def test_openai_exception_uses_fallback(monkeypatch) -> None:
     assert result.turns_awarded == 1
     assert result.used_fallback is True
     assert "OpenAI evaluation failed" in (result.error_message or "")
+    assert result.validation_status == "failed"
 
 
 def test_invalid_openai_output_uses_fallback(monkeypatch) -> None:
@@ -64,6 +65,7 @@ def test_invalid_openai_output_uses_fallback(monkeypatch) -> None:
     assert result.turns_awarded == 1
     assert result.used_fallback is True
     assert "validation failed" in (result.error_message or "")
+    assert result.validation_status == "rejected"
 
 
 def test_valid_openai_output_is_used(monkeypatch) -> None:

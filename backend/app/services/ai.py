@@ -11,6 +11,7 @@ Complexity = Literal["low", "medium", "high"]
 Meaningfulness = Literal["low", "medium", "high"]
 SourceType = Literal["task", "habit"]
 ChoiceType = Literal["branching", "progression", "investigation", "tone"]
+ValidationStatus = Literal["approved", "rejected", "fallback_used", "failed"]
 
 
 class ProductivityEvaluationInput(BaseModel):
@@ -28,6 +29,7 @@ class ProductivityEvaluationResult(BaseModel):
     reason: str = Field(min_length=1, max_length=240)
     used_fallback: bool = False
     error_message: str | None = None
+    validation_status: ValidationStatus | None = None
 
 
 EVALUATION_JSON_SCHEMA: dict[str, Any] = {
@@ -68,6 +70,7 @@ class QuestPlanResult(BaseModel):
     open_questions: list[str] = Field(min_length=1, max_length=6)
     used_fallback: bool = False
     error_message: str | None = None
+    validation_status: ValidationStatus | None = None
 
 
 class NarrativeChoice(BaseModel):
@@ -93,6 +96,7 @@ class NarrativeTurnResult(BaseModel):
     choices: list[NarrativeChoice] = Field(min_length=2, max_length=3)
     used_fallback: bool = False
     error_message: str | None = None
+    validation_status: ValidationStatus | None = None
 
 
 class ChoiceResolutionInput(BaseModel):
@@ -116,6 +120,7 @@ class ChoiceResolutionResult(BaseModel):
     outcome_summary: str | None = Field(default=None, max_length=700)
     used_fallback: bool = False
     error_message: str | None = None
+    validation_status: ValidationStatus | None = None
 
 
 QUEST_PLAN_JSON_SCHEMA: dict[str, Any] = {
@@ -202,6 +207,7 @@ CHOICE_RESOLUTION_JSON_SCHEMA: dict[str, Any] = {
 def fallback_productivity_evaluation(
     payload: ProductivityEvaluationInput,
     error_message: str | None = None,
+    validation_status: ValidationStatus = "fallback_used",
 ) -> ProductivityEvaluationResult:
     reason = (
         "Nice work completing a real task."
@@ -216,6 +222,7 @@ def fallback_productivity_evaluation(
         reason=reason,
         used_fallback=True,
         error_message=error_message,
+        validation_status=validation_status,
     )
 
 
@@ -274,11 +281,21 @@ def evaluate_productivity_action(payload: ProductivityEvaluationInput) -> Produc
             return fallback_productivity_evaluation(payload, "OpenAI response did not include output text.")
 
         result = ProductivityEvaluationResult.model_validate_json(output_text)
-        return result.model_copy(update={"used_fallback": False, "error_message": None})
+        return result.model_copy(
+            update={"used_fallback": False, "error_message": None, "validation_status": "approved"}
+        )
     except (ValidationError, json.JSONDecodeError) as exc:
-        return fallback_productivity_evaluation(payload, f"OpenAI response validation failed: {exc}")
+        return fallback_productivity_evaluation(
+            payload,
+            f"OpenAI response validation failed: {exc}",
+            validation_status="rejected",
+        )
     except Exception as exc:
-        return fallback_productivity_evaluation(payload, f"OpenAI evaluation failed: {exc}")
+        return fallback_productivity_evaluation(
+            payload,
+            f"OpenAI evaluation failed: {exc}",
+            validation_status="failed",
+        )
 
 
 def _create_structured_response(
@@ -315,7 +332,11 @@ def _create_structured_response(
     return output_text
 
 
-def fallback_quest_plan(payload: QuestPlanInput, error_message: str | None = None) -> QuestPlanResult:
+def fallback_quest_plan(
+    payload: QuestPlanInput,
+    error_message: str | None = None,
+    validation_status: ValidationStatus = "fallback_used",
+) -> QuestPlanResult:
     genre = payload.preferred_genres[0] if payload.preferred_genres else "adventure mystery"
     tone = payload.tone_style_preferences or "cinematic, mysterious, and adventurous"
     return QuestPlanResult(
@@ -349,6 +370,7 @@ def fallback_quest_plan(payload: QuestPlanInput, error_message: str | None = Non
         ],
         used_fallback=True,
         error_message=error_message,
+        validation_status=validation_status,
     )
 
 
@@ -372,14 +394,17 @@ def plan_quest(payload: QuestPlanInput) -> QuestPlanResult:
             schema_name="quest_plan",
             schema=QUEST_PLAN_JSON_SCHEMA,
         )
-        return QuestPlanResult.model_validate_json(output_text)
+        return QuestPlanResult.model_validate_json(output_text).model_copy(
+            update={"validation_status": "approved"}
+        )
     except Exception as exc:
-        return fallback_quest_plan(payload, f"Quest planning failed: {exc}")
+        return fallback_quest_plan(payload, f"Quest planning failed: {exc}", validation_status="failed")
 
 
 def fallback_narrative_turn(
     payload: NarrativeTurnInput,
     error_message: str | None = None,
+    validation_status: ValidationStatus = "fallback_used",
 ) -> NarrativeTurnResult:
     fallback_setpieces = [
         (
@@ -409,6 +434,7 @@ def fallback_narrative_turn(
         ],
         used_fallback=True,
         error_message=error_message,
+        validation_status=validation_status,
     )
 
 
@@ -434,14 +460,21 @@ def generate_narrative_turn(payload: NarrativeTurnInput) -> NarrativeTurnResult:
             schema_name="narrative_turn",
             schema=NARRATIVE_TURN_JSON_SCHEMA,
         )
-        return NarrativeTurnResult.model_validate_json(output_text)
+        return NarrativeTurnResult.model_validate_json(output_text).model_copy(
+            update={"validation_status": "approved"}
+        )
     except Exception as exc:
-        return fallback_narrative_turn(payload, f"Narrative generation failed: {exc}")
+        return fallback_narrative_turn(
+            payload,
+            f"Narrative generation failed: {exc}",
+            validation_status="failed",
+        )
 
 
 def fallback_choice_resolution(
     payload: ChoiceResolutionInput,
     error_message: str | None = None,
+    validation_status: ValidationStatus = "fallback_used",
 ) -> ChoiceResolutionResult:
     is_complete = payload.turns_spent_after >= payload.planned_length_in_turns
     next_locations = [
@@ -478,6 +511,7 @@ def fallback_choice_resolution(
         outcome_summary=outcome_summary,
         used_fallback=True,
         error_message=error_message,
+        validation_status=validation_status,
     )
 
 
@@ -501,6 +535,12 @@ def resolve_choice(payload: ChoiceResolutionInput) -> ChoiceResolutionResult:
             schema_name="choice_resolution",
             schema=CHOICE_RESOLUTION_JSON_SCHEMA,
         )
-        return ChoiceResolutionResult.model_validate_json(output_text)
+        return ChoiceResolutionResult.model_validate_json(output_text).model_copy(
+            update={"validation_status": "approved"}
+        )
     except Exception as exc:
-        return fallback_choice_resolution(payload, f"Choice resolution failed: {exc}")
+        return fallback_choice_resolution(
+            payload,
+            f"Choice resolution failed: {exc}",
+            validation_status="failed",
+        )
