@@ -18,6 +18,8 @@
 - `VITE_APP_NAME`
 - `VITE_APP_ENV`
 - `VITE_API_BASE_URL`
+  - local development: `http://localhost:8000`
+  - Vercel production: leave blank so browser requests stay same-origin as `/api/...`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 
@@ -52,6 +54,7 @@
 ## Post-Deploy Checks
 
 - Open `/api/health` and confirm the API responds.
+- Confirm browser network requests target `/api/...`, not `http://localhost:8000/api/...`.
 - Sign in with a real account.
 - Request a password reset email and confirm the link returns to `/update-password`.
 - Create and complete a task.
