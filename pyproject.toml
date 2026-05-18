@@ -2,3 +2,11 @@
 name = "hightech-mvp-questly-api"
 version = "0.1.0"
 requires-python = "~=3.12.0"
+dependencies = [
+  "fastapi==0.111.0",
+  "pydantic==2.13.4",
+  "python-dotenv==1.0.1",
+  "supabase==2.5.1",
+  "openai>=1.68.0",
+  "sentry-sdk[fastapi]>=2.60.0",
+]

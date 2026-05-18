@@ -6,6 +6,7 @@
 - Output directory: `dist`
 - Framework preset: `Other`
 - Confirm the `api/index.py` function is detected after deployment.
+- Keep backend runtime dependencies in both `pyproject.toml` and `requirements.txt`.
 - Confirm Supabase Auth URL Configuration includes:
   - production site URL
   - `http://localhost:5280/update-password`
