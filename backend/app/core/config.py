@@ -53,7 +53,7 @@ def get_settings() -> Settings:
         supabase_url=getenv("SUPABASE_URL"),
         supabase_publishable_key=getenv("SUPABASE_PUBLISHABLE_KEY")
         or getenv("VITE_SUPABASE_PUBLISHABLE_KEY"),
-        supabase_secret_key=getenv("SUPABASE_SECRET_KEY"),
+        supabase_secret_key=getenv("SUPABASE_SECRET_KEY") or getenv("SUPABASE_PRIVATE_KEY"),
         openai_api_key=getenv("OPENAI_API_KEY"),
         openai_reward_model=getenv("OPENAI_REWARD_MODEL", "gpt-5.4-nano"),
         sentry_dsn=getenv("SENTRY_DSN"),

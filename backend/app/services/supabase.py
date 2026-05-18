@@ -152,7 +152,7 @@ def _extract_error_detail(response: httpx.Response) -> str:
 def get_supabase_admin_client() -> SupabaseRestClient:
     settings = get_settings()
     if not settings.supabase_url or not settings.supabase_secret_key:
-        raise RuntimeError("SUPABASE_URL and SUPABASE_SECRET_KEY are required.")
+        raise RuntimeError("SUPABASE_URL and a Supabase server key are required.")
 
     return SupabaseRestClient(settings.supabase_url, settings.supabase_secret_key)
 
