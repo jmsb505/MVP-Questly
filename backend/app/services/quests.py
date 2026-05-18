@@ -19,6 +19,7 @@ from backend.app.services.ai_validation import (
     validate_narrative_turn,
     validate_quest_plan,
 )
+from backend.app.services.analytics import record_event
 from backend.app.services.memory import (
     clear_active_quest_memory,
     get_user_memory,
@@ -324,6 +325,12 @@ def create_quest(
         previous_story_choices_summary=plan.starting_situation,
         new_story_facts=plan.known_facts,
     )
+    record_event(
+        supabase,
+        current_user,
+        event_name="quest_created",
+        properties={"quest_id": quest["id"], "genre": quest.get("genre")},
+    )
     return _serialize_quest(supabase, quest, current_user)
 
 
@@ -357,6 +364,12 @@ def abandon_active_quest(
         .eq("user_id", current_user.id)
     )
     clear_active_quest_memory(supabase, current_user)
+    record_event(
+        supabase,
+        current_user,
+        event_name="quest_abandoned",
+        properties={"quest_id": quest["id"]},
+    )
     return _serialize_quest(supabase, abandoned, current_user)
 
 
@@ -451,6 +464,12 @@ def select_choice(
         .update({"available_turns": balance_after})
         .eq("user_id", current_user.id)
     )
+    record_event(
+        supabase,
+        current_user,
+        event_name="turns_spent",
+        properties={"quest_id": quest_id, "choice_id": choice_id, "amount": 1},
+    )
     _execute_data(
         supabase.table("story_turn_transactions")
         .insert(
@@ -537,6 +556,12 @@ def select_choice(
             outcome_summary=outcome_summary,
             completed_at=_now(),
         )
+        record_event(
+            supabase,
+            current_user,
+            event_name="quest_completed",
+            properties={"quest_id": quest_id, "turns_spent": turns_spent_after},
+        )
     else:
         next_state = _quest_state(supabase, quest_id, current_user) or state_updates
         _create_turn(supabase, current_user, quest, next_state, turns_spent_after)
@@ -547,6 +572,18 @@ def select_choice(
             previous_story_choices_summary=resolution.previous_choices_summary,
             new_story_facts=resolution.new_story_facts,
         )
+
+    record_event(
+        supabase,
+        current_user,
+        event_name="quest_choice_selected",
+        properties={
+            "quest_id": quest_id,
+            "choice_id": choice_id,
+            "turns_spent_after": turns_spent_after,
+            "quest_completed": quest_completed,
+        },
+    )
 
     serialized = _serialize_quest(supabase, quest, current_user)
     return {

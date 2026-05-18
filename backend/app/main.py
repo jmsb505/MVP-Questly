@@ -2,11 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.config import get_settings
+from backend.app.core.observability import init_sentry
 from backend.app.routers import auth, habits, health, placeholders, quests, story_turns, tasks, user_memory
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    init_sentry(settings)
 
     app = FastAPI(
         title="HighTech API",

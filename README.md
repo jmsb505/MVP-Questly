@@ -68,6 +68,11 @@ For the repo-local backend dependencies, prefer:
 - Browser smoke tests: `pnpm test:e2e`
 - Manual tester pass: see `Docs/HighTech__Manual_QA_Checklist.md`
 
+## Deployment
+
+Deployment readiness steps and required production variables are documented in
+`Docs/HighTech__Deployment_Checklist.md`.
+
 The FastAPI app runs at `http://localhost:8000` by default. Health check:
 
 ```text

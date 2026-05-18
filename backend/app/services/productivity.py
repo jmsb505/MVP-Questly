@@ -10,6 +10,7 @@ from backend.app.services.ai import (
     ProductivityEvaluationResult,
     evaluate_productivity_action,
 )
+from backend.app.services.analytics import record_event
 from backend.app.services.memory import update_productivity_summary
 from backend.app.services.supabase import get_supabase_admin_client
 
@@ -105,7 +106,14 @@ def create_task(
             }
         )
     )
-    return _first_or_404(rows, "Task")
+    task = _first_or_404(rows, "Task")
+    record_event(
+        supabase,
+        current_user,
+        event_name="task_created",
+        properties={"task_id": task["id"]},
+    )
+    return task
 
 
 def update_task(
@@ -159,7 +167,14 @@ def create_habit(
             }
         )
     )
-    return _first_or_404(rows, "Habit")
+    habit = _first_or_404(rows, "Habit")
+    record_event(
+        supabase,
+        current_user,
+        event_name="habit_created",
+        properties={"habit_id": habit["id"]},
+    )
+    return habit
 
 
 def update_habit(
@@ -363,6 +378,26 @@ def complete_task(
         source_type="task",
         title=task["title"],
     )
+    record_event(
+        supabase,
+        current_user,
+        event_name="task_completed",
+        properties={
+            "task_id": task_id,
+            "turns_awarded": reward["turns_awarded"],
+            "turns_added_to_balance": reward["turns_added_to_balance"],
+        },
+    )
+    record_event(
+        supabase,
+        current_user,
+        event_name="turns_earned",
+        properties={
+            "source_type": "task",
+            "source_id": task_id,
+            "amount": reward["turns_added_to_balance"],
+        },
+    )
     return reward
 
 
@@ -422,5 +457,25 @@ def complete_habit(
         current_user,
         source_type="habit",
         title=habit["title"],
+    )
+    record_event(
+        supabase,
+        current_user,
+        event_name="habit_completed",
+        properties={
+            "habit_id": habit_id,
+            "turns_awarded": reward["turns_awarded"],
+            "turns_added_to_balance": reward["turns_added_to_balance"],
+        },
+    )
+    record_event(
+        supabase,
+        current_user,
+        event_name="turns_earned",
+        properties={
+            "source_type": "habit",
+            "source_id": habit_id,
+            "amount": reward["turns_added_to_balance"],
+        },
     )
     return reward

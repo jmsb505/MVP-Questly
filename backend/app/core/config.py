@@ -22,6 +22,8 @@ class Settings(BaseModel):
     supabase_secret_key: str | None = None
     openai_api_key: str | None = None
     openai_reward_model: str = "gpt-5.4-nano"
+    sentry_dsn: str | None = None
+    sentry_traces_sample_rate: float = 0.0
 
 
 def _split_csv(value: str | None, default: list[str]) -> list[str]:
@@ -54,4 +56,6 @@ def get_settings() -> Settings:
         supabase_secret_key=getenv("SUPABASE_SECRET_KEY"),
         openai_api_key=getenv("OPENAI_API_KEY"),
         openai_reward_model=getenv("OPENAI_REWARD_MODEL", "gpt-5.4-nano"),
+        sentry_dsn=getenv("SENTRY_DSN"),
+        sentry_traces_sample_rate=float(getenv("SENTRY_TRACES_SAMPLE_RATE", "0")),
     )
