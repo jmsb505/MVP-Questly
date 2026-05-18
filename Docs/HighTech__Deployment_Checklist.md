@@ -6,6 +6,7 @@
 - Output directory: `dist`
 - Framework preset: `Other`
 - Confirm the `api/index.py` function is detected after deployment.
+- Keep the repo-root `.python-version` file at `3.12` so Vercel does not select a newer unsupported Python runtime for current backend dependencies.
 
 ## Required Environment Variables
 
