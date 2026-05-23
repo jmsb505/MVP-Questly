@@ -1,7 +1,34 @@
+import { useEffect, useState } from "react";
 import type { CompletionReward } from "../features/productivity/types";
 
 export function RewardNotice({ reward }: { reward: CompletionReward | null }) {
-  if (!reward) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  useEffect(() => {
+    if (!reward) {
+      setIsVisible(false);
+      setIsLeaving(false);
+      return;
+    }
+
+    setIsVisible(true);
+    setIsLeaving(false);
+
+    const fadeTimer = window.setTimeout(() => {
+      setIsLeaving(true);
+    }, 4700);
+    const hideTimer = window.setTimeout(() => {
+      setIsVisible(false);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(hideTimer);
+    };
+  }, [reward]);
+
+  if (!reward || !isVisible) {
     return null;
   }
 
@@ -12,7 +39,11 @@ export function RewardNotice({ reward }: { reward: CompletionReward | null }) {
       : "Your balance is already full.";
 
   return (
-    <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+    <div
+      className={`rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 transition-opacity duration-300 ${
+        isLeaving ? "opacity-0" : "opacity-100"
+      }`}
+    >
       <p className="font-medium">You earned {earnedLabel}.</p>
       <p className="mt-1">
         {addedLabel} Current balance: {reward.balance_after}.

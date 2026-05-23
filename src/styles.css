@@ -3,16 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 214 32% 13%;
-  --surface: 0 0% 100%;
-  --border: 214 20% 86%;
-  --muted: 210 20% 94%;
-  --muted-foreground: 215 16% 42%;
-  --primary: 173 63% 30%;
-  --primary-foreground: 0 0% 100%;
-  --accent: 38 80% 54%;
-  --accent-foreground: 214 32% 13%;
+  --background: 285 18% 13%;
+  --foreground: 296 42% 88%;
+  --surface: 280 16% 22%;
+  --border: 286 16% 31%;
+  --muted: 282 17% 18%;
+  --muted-foreground: 292 18% 71%;
+  --primary: 287 74% 62%;
+  --primary-foreground: 292 38% 95%;
+  --accent: 356 83% 68%;
+  --accent-foreground: 292 38% 95%;
+  --success: 173 58% 45%;
+  --warning: 35 87% 65%;
+  --danger: 356 83% 68%;
 }
 
 * {
@@ -23,7 +26,148 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    linear-gradient(115deg, transparent 0 34%, hsl(291 18% 26% / 0.42) 34% 34.4%, transparent 34.4% 100%),
+    linear-gradient(35deg, transparent 0 63%, hsl(291 18% 26% / 0.36) 63% 63.35%, transparent 63.35% 100%),
+    hsl(var(--background));
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Inter", "Nunito Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+  color: hsl(var(--foreground));
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  box-shadow: 0 10px 24px hsl(285 24% 8% / 0.18);
+}
+
+input,
+textarea,
+select {
+  color: hsl(var(--foreground));
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
+input[type="date"] {
+  color-scheme: dark;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    letter-spacing: 0;
+  }
+
+  section,
+  article,
+  aside,
+  form {
+    border-color: hsl(var(--border) / 0.9);
+  }
+
+  a {
+    color: hsl(var(--primary));
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .bg-surface {
+    background:
+      linear-gradient(180deg, hsl(281 17% 26% / 0.98), hsl(var(--surface))),
+      hsl(var(--surface));
+    box-shadow: 0 18px 40px hsl(285 24% 7% / 0.28);
+  }
+
+  .bg-background {
+    background-color: hsl(var(--muted));
+  }
+
+  .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+  }
+
+  .border-border {
+    border-color: hsl(var(--border) / 0.9);
+  }
+
+  .hover\:border-primary:hover {
+    border-color: hsl(var(--primary) / 0.95);
+  }
+
+  .hover\:border-accent:hover {
+    border-color: hsl(var(--accent) / 0.95);
+  }
+
+  .bg-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+
+  .border-primary {
+    border-color: hsl(var(--primary) / 0.95);
+  }
+
+  .text-primary {
+    color: hsl(var(--primary));
+  }
+
+  .text-accent {
+    color: hsl(var(--accent));
+  }
+
+  .bg-emerald-50 {
+    background-color: hsl(var(--success) / 0.15);
+  }
+
+  .border-emerald-200 {
+    border-color: hsl(var(--success) / 0.45);
+  }
+
+  .text-emerald-700,
+  .text-emerald-800 {
+    color: hsl(164 70% 74%);
+  }
+
+  .bg-amber-50 {
+    background-color: hsl(var(--warning) / 0.16);
+  }
+
+  .border-amber-200 {
+    border-color: hsl(var(--warning) / 0.45);
+  }
+
+  .text-amber-800 {
+    color: hsl(38 95% 77%);
+  }
+
+  .bg-red-50 {
+    background-color: hsl(var(--danger) / 0.14);
+  }
+
+  .border-red-200 {
+    border-color: hsl(var(--danger) / 0.45);
+  }
+
+  .text-red-700 {
+    color: hsl(356 92% 78%);
+  }
 }

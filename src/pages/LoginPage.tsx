@@ -14,7 +14,9 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/dashboard";
+  const from =
+    (location.state as { from?: { pathname?: string } } | null)?.from
+      ?.pathname ?? "/dashboard";
 
   if (session) {
     return <Navigate to={from} replace />;
@@ -35,7 +37,11 @@ export function LoginPage() {
         setMessage(result);
       }
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Authentication failed.");
+      setError(
+        authError instanceof Error
+          ? authError.message
+          : "Authentication failed.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -48,26 +54,30 @@ export function LoginPage() {
           Supabase Auth
         </p>
         <h2 className="text-xl font-semibold">
-          {mode === "sign-in" ? "Sign in" : "Create account"}
+          {mode === "sign-in" ? "Log in" : "Create account"}
         </h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Phase 2 uses Supabase Auth as the account boundary for profiles, memory,
-          tasks, turns, and quests.
+          Phase 2 uses Supabase Auth as the account boundary for profiles,
+          memory, tasks, turns, and quests.
         </p>
 
         <div className="mt-5 inline-flex rounded-md border border-border bg-background p-1">
           <button
-            className={`rounded-sm px-3 py-2 text-sm font-medium ${
-              mode === "sign-in" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            className={`rounded-md border px-3 py-2 text-sm font-semibold transition-colors ${
+              mode === "sign-in"
+                ? "border-primary/80 bg-primary/10 text-primary-foreground"
+                : "border-transparent text-muted-foreground hover:border-accent hover:text-foreground"
             }`}
             type="button"
             onClick={() => setMode("sign-in")}
           >
-            Sign in
+            Log in
           </button>
           <button
-            className={`rounded-sm px-3 py-2 text-sm font-medium ${
-              mode === "sign-up" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            className={`rounded-md border px-3 py-2 text-sm font-semibold transition-colors ${
+              mode === "sign-up"
+                ? "border-primary/80 bg-primary/10 text-primary-foreground"
+                : "border-transparent text-muted-foreground hover:border-accent hover:text-foreground"
             }`}
             type="button"
             onClick={() => setMode("sign-up")}
@@ -113,21 +123,36 @@ export function LoginPage() {
           </label>
           {mode === "sign-in" ? (
             <div className="flex justify-end">
-              <Link className="text-sm font-medium text-primary hover:underline" to="/forgot-password">
+              <Link
+                className="text-sm font-medium text-primary hover:underline"
+                to="/forgot-password"
+              >
                 Forgot password?
               </Link>
             </div>
           ) : null}
 
-          {error ? <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-          {message ? <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
+          {error ? (
+            <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+          {message ? (
+            <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              {message}
+            </p>
+          ) : null}
 
           <button
             className="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
             disabled={!isConfigured || isSubmitting}
           >
-            {isSubmitting ? "Working..." : mode === "sign-in" ? "Sign in" : "Create account"}
+            {isSubmitting
+              ? "Working..."
+              : mode === "sign-in"
+                ? "Log in"
+                : "Create account"}
           </button>
         </form>
       </section>

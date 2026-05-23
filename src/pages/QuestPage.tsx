@@ -140,7 +140,7 @@ export function QuestPage() {
             {quest ? (
               <div className="grid gap-2">
                 <button
-                  className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground disabled:cursor-wait disabled:opacity-70"
+                  className="inline-flex h-9 min-w-40 items-center justify-center whitespace-nowrap rounded-md border border-accent/45 bg-accent/10 px-4 text-sm font-semibold text-accent transition-colors hover:border-accent hover:bg-accent/15 hover:text-primary-foreground disabled:cursor-wait disabled:opacity-70"
                   type="button"
                   disabled={isAbandoning || pendingChoiceId !== null}
                   onClick={() =>

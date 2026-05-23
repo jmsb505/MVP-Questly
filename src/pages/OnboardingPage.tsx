@@ -99,10 +99,10 @@ export function OnboardingPage() {
                 return (
                   <button
                     key={genre}
-                    className={`rounded-md border px-3 py-2 text-sm font-medium ${
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold transition-colors ${
                       selected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background text-muted-foreground"
+                        ? "border-primary/80 bg-primary/10 text-primary-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-accent hover:text-foreground"
                     }`}
                     type="button"
                     onClick={() => toggleGenre(genre)}

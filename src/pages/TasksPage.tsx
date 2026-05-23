@@ -148,24 +148,26 @@ export function TasksPage() {
         key={task.id}
         className={`rounded-md border p-4 ${
           completed
-            ? "border-emerald-200 bg-emerald-50"
+            ? "border-[hsl(var(--success)/0.55)] bg-[hsl(var(--success)/0.07)]"
             : "border-border bg-background"
         }`}
       >
         {editingTaskId === task.id ? (
           <div className="grid gap-3">
             <input
-              className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-primary-foreground outline-none placeholder:text-muted-foreground/70 focus:border-primary"
+              placeholder="Title"
               value={editTitle}
               onChange={(event) => setEditTitle(event.target.value)}
             />
             <textarea
-              className="min-h-20 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
+              className="min-h-20 rounded-md border border-border bg-background px-3 py-2 text-sm text-primary-foreground outline-none placeholder:text-muted-foreground/70 focus:border-primary"
+              placeholder="Description"
               value={editDescription}
               onChange={(event) => setEditDescription(event.target.value)}
             />
             <input
-              className="h-10 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-primary-foreground outline-none placeholder:text-muted-foreground/70 focus:border-primary"
               type="date"
               value={editDueDate}
               onChange={(event) => setEditDueDate(event.target.value)}
@@ -232,7 +234,7 @@ export function TasksPage() {
                 </>
               ) : null}
               <button
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex h-9 min-w-28 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-accent/45 bg-accent/10 px-4 text-sm font-semibold text-accent transition-colors hover:border-accent hover:bg-accent/15 hover:text-primary-foreground disabled:cursor-wait disabled:opacity-60"
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleArchive(task.id)}

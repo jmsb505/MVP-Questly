@@ -221,7 +221,7 @@ export function HabitsPage() {
               </button>
               {!doneToday ? (
                 <button
-                  className="inline-flex h-9 min-w-36 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium disabled:cursor-wait disabled:opacity-60"
+                  className="inline-flex h-9 min-w-40 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-[hsl(var(--success)/0.55)] bg-[hsl(var(--success)/0.13)] px-4 text-sm font-semibold text-[hsl(164_70%_74%)] transition-colors hover:bg-[hsl(var(--success)/0.2)] hover:text-primary-foreground disabled:cursor-wait disabled:opacity-60"
                   type="button"
                   disabled={isBusy}
                   onClick={() => void handleComplete(habit.id)}
@@ -237,7 +237,7 @@ export function HabitsPage() {
                 </button>
               ) : null}
               <button
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex h-9 min-w-28 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-accent/45 bg-accent/10 px-4 text-sm font-semibold text-accent transition-colors hover:border-accent hover:bg-accent/15 hover:text-primary-foreground disabled:cursor-wait disabled:opacity-60"
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleArchive(habit.id)}
